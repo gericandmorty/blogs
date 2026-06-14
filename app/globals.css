@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #dae0e6; /* Classic Reddit light mode background */
+  --foreground: #1a1a1b; /* Classic Reddit dark text */
+  --card: #ffffff;       /* Card background */
+  --card-foreground: #1c1c1c;
+  --border: #ccc;        /* Classic Reddit light border */
+  --primary: #ff4500;    /* Reddit orange-red */
+  --primary-hover: #e03d00;
+  --muted: #787c7e;      /* Grey text */
+  --muted-background: #f6f7f8; /* Very light grey */
+  --accent: #0079d3;     /* Reddit link blue */
+  --accent-hover: #005fa8;
+}
+
+.dark {
+  --background: #030303; /* Deep black-grey Reddit dark mode background */
+  --foreground: #d7dadc; /* Light grey text */
+  --card: #1a1a1b;       /* Dark card background */
+  --card-foreground: #d7dadc;
+  --border: #343536;     /* Dark theme borders */
+  --primary: #ff4500;
+  --primary-hover: #ff581a;
+  --muted: #818384;      /* Dark theme grey text */
+  --muted-background: #272729; /* Dark grey */
+  --accent: #4fbcff;     /* Accent blue on dark mode */
+  --accent-hover: #80cdff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-muted: var(--muted);
+  --color-muted-background: var(--muted-background);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Custom scrollbars for a premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
