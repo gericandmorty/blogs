@@ -27,7 +27,16 @@ function mapPostToBlogPost(post: any): BlogPost {
         day: 'numeric',
         year: 'numeric',
       }),
-      replies: [],
+      replies: (c.replies || []).map((r: any) => ({
+        id: r._id || `r-${Math.random()}`,
+        author: r.author || 'Anonymous',
+        content: r.content || '',
+        createdAt: new Date(r.createdAt || Date.now()).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+      })),
     })),
   };
 }
@@ -115,6 +124,48 @@ export async function deletePost(postId: string): Promise<any> {
   });
   if (!res.ok) {
     throw new Error(`Failed to delete post: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function deleteCommentFromPost(postId: string, commentId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to delete comment: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function addReplyToComment(
+  postId: string,
+  commentId: string,
+  reply: { author: string; content: string }
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(reply),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to add reply: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function deleteReplyFromComment(
+  postId: string,
+  commentId: string,
+  replyId: string
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies/${replyId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to delete reply: ${res.statusText}`);
   }
   return res.json();
 }

@@ -4,7 +4,7 @@ import React, { useState, use, useEffect } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import Navbar from '../../../../components/Navbar';
 import Footer from '../../../../components/Footer';
-import { fetchPostBySlug, fetchPostsByCategory, addCommentToPost } from '../../../../data';
+import { fetchPostBySlug, fetchPostsByCategory, addCommentToPost, addReplyToComment } from '../../../../data';
 import {
   ArrowLeft,
   Calendar,
@@ -369,7 +369,17 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                   </p>
                 ) : (
                   comments.map((comment) => (
-                    <CommentItem key={comment.id} comment={comment} />
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      postId={post.id}
+                      onReplyAdded={async () => {
+                        const updated = await fetchPostBySlug(slug);
+                        if (updated) {
+                          setComments(updated.comments || []);
+                        }
+                      }}
+                    />
                   ))
                 )}
               </div>
@@ -380,10 +390,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
           <aside className="space-y-6 animate-fade-in-up">
             {/* Table of contents / Author card */}
             <div className="rounded-xl border border-border bg-card p-5 sticky top-20">
-              <div className="flex items-center gap-3 pb-4 border-b border-border">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black">
-                  GM
-                </div>
+              <div className="pb-4 border-b border-border">
                 <div>
                   <p className="font-semibold text-sm text-foreground">Geric Morit</p>
                   <p className="text-xs text-muted">Full-Stack Developer</p>
@@ -431,10 +438,49 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
   );
 }
 
-function CommentItem({ comment }: { comment: Comment }) {
+function CommentItem({
+  comment,
+  postId,
+  onReplyAdded,
+  isReply = false,
+}: {
+  comment: Comment;
+  postId: string;
+  onReplyAdded: () => void;
+  isReply?: boolean;
+}) {
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyAuthor, setReplyAuthor] = useState('');
+  const [replyContent, setReplyContent] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      await addReplyToComment(postId, comment.id, {
+        author: replyAuthor.trim() || 'Anonymous',
+        content: replyContent.trim(),
+      });
+      setReplyContent('');
+      setReplyAuthor('');
+      setShowReplyForm(false);
+      onReplyAdded();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to submit reply');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex gap-3">
-      <div className="h-7 w-7 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+      <div className="h-7 w-7 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary animate-fade-in">
         {comment.author[0].toUpperCase()}
       </div>
       <div className="flex-1 space-y-1">
@@ -442,11 +488,70 @@ function CommentItem({ comment }: { comment: Comment }) {
           <span className="text-sm font-semibold text-foreground">{comment.author}</span>
           <span className="text-xs text-muted">{comment.createdAt}</span>
         </div>
-        <p className="text-sm text-foreground/80 leading-relaxed">{comment.content}</p>
+        <p className="text-sm text-foreground/80 leading-relaxed font-medium">{comment.content}</p>
+
+        {/* Reply Action Toggle */}
+        {!isReply && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <button
+              onClick={() => setShowReplyForm(!showReplyForm)}
+              className="text-[11px] font-bold text-primary hover:text-primary-hover transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              Reply
+            </button>
+          </div>
+        )}
+
+        {/* Reply Form */}
+        {showReplyForm && (
+          <form onSubmit={handleReplySubmit} className="mt-3 space-y-2.5 p-3.5 rounded-xl border border-border bg-muted-background/30 max-w-md animate-fade-in-up">
+            {error && <p className="text-[11px] text-red-500 font-semibold">{error}</p>}
+            <input
+              type="text"
+              value={replyAuthor}
+              onChange={(e) => setReplyAuthor(e.target.value)}
+              placeholder="Your name (optional)"
+              className="w-full rounded-lg border border-border bg-transparent px-3 py-1.5 text-xs focus:outline-none focus:border-primary placeholder-muted transition-colors font-medium"
+            />
+            <div className="relative rounded-lg border border-border focus-within:border-primary overflow-hidden transition-colors">
+              <textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Write your reply…"
+                rows={2}
+                className="w-full bg-transparent p-2.5 text-xs focus:outline-none resize-none placeholder-muted font-medium"
+              />
+              <div className="flex justify-end border-t border-border/60 bg-muted-background/30 px-3 py-1.5 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReplyForm(false)}
+                  className="rounded-full border border-border bg-card hover:bg-muted-background px-3 py-1 text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!replyContent.trim() || submitting}
+                  className="flex items-center gap-1 rounded-full bg-primary disabled:opacity-40 hover:bg-primary-hover px-3.5 py-1 text-[10px] font-bold text-white transition-colors cursor-pointer shadow-sm"
+                >
+                  {submitting ? 'Posting...' : 'Post Reply'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* Recursive replies rendering */}
         {comment.replies && comment.replies.length > 0 && (
           <div className="pl-4 border-l-2 border-border mt-3 space-y-3">
             {comment.replies.map((reply) => (
-              <CommentItem key={reply.id} comment={reply} />
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                postId={postId}
+                onReplyAdded={onReplyAdded}
+                isReply={true}
+              />
             ))}
           </div>
         )}

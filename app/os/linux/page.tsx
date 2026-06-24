@@ -46,18 +46,18 @@ export default function LinuxPage() {
         <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 animate-fade-in-up">
           <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full blur-3xl"
                style={{ background: 'color-mix(in srgb, var(--tag-linux) 15%, transparent)' }} />
-          <div className="relative flex items-center gap-5">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl overflow-hidden shadow-lg border border-border bg-background p-1.5 transition-transform duration-300 hover:scale-105">
+          <div className="relative flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 items-center justify-center rounded-3xl overflow-hidden shadow-xl border border-border bg-background p-2.5 transition-transform duration-300 hover:scale-105">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://res.cloudinary.com/dmxbtqpuh/image/upload/blogs/posts/tux.png" alt="Tux logo" className="h-full w-full object-contain" />
+              <img src="/os/linux/tux.png" alt="Tux logo" className="h-full w-full object-contain" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">Linux</h1>
-              <p className="text-muted text-sm mt-1 max-w-xl leading-relaxed">
+            <div className="text-center sm:text-left">
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">Linux</h1>
+              <p className="text-muted text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
                 Terminal commands, system configuration, shell scripting, and everything
                 about living in the Linux ecosystem as a developer.
               </p>
-              <p className="text-xs text-muted mt-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary mt-3">
                 {postsList.length} {postsList.length === 1 ? 'post' : 'posts'}
               </p>
             </div>

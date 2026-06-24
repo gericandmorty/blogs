@@ -17,10 +17,11 @@ import {
   Tag,
   BookOpen,
   Upload,
+  MessageSquare,
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { fetchAllPosts, updatePost, createPost, deletePost, uploadImage } from '../data';
+import { fetchAllPosts, updatePost, createPost, deletePost, uploadImage, deleteCommentFromPost, deleteReplyFromComment } from '../data';
 import { BlogPost, Category } from '../types';
 
 export default function EditPostsClient() {
@@ -43,6 +44,7 @@ export default function EditPostsClient() {
   const [editContent, setEditContent] = useState('');
   const [uploading, setUploading] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [managingCommentsPost, setManagingCommentsPost] = useState<BlogPost | null>(null);
 
   // Active view tab in editor (edit vs preview)
   const [editorTab, setEditorTab] = useState<'edit' | 'preview' | 'split'>('split');
@@ -204,6 +206,106 @@ export default function EditPostsClient() {
     setPendingImageFile(file);
     const localUrl = URL.createObjectURL(file);
     setEditCoverImage(localUrl);
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!confirm('Are you sure you want to delete this comment?')) {
+      return;
+    }
+    try {
+      setUploading(true);
+      setError(null);
+      await deleteCommentFromPost(postId, commentId);
+
+      // Update parent list
+      setPosts((prevPosts) =>
+        prevPosts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              comments: post.comments.filter((c) => c.id !== commentId),
+            };
+          }
+          return post;
+        })
+      );
+
+      // Update current modal detail
+      if (managingCommentsPost && managingCommentsPost.id === postId) {
+        setManagingCommentsPost((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            comments: prev.comments.filter((c) => c.id !== commentId),
+          };
+        });
+      }
+
+      showToast('Comment deleted successfully.');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to delete comment.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteReply = async (postId: string, commentId: string, replyId: string) => {
+    if (!confirm('Are you sure you want to delete this reply?')) {
+      return;
+    }
+    try {
+      setUploading(true);
+      setError(null);
+      await deleteReplyFromComment(postId, commentId, replyId);
+
+      // Update parent list
+      setPosts((prevPosts) =>
+        prevPosts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              comments: post.comments.map((c) => {
+                if (c.id === commentId && c.replies) {
+                  return {
+                    ...c,
+                    replies: c.replies.filter((r) => r.id !== replyId),
+                  };
+                }
+                return c;
+              }),
+            };
+          }
+          return post;
+        })
+      );
+
+      // Update current modal detail
+      if (managingCommentsPost && managingCommentsPost.id === postId) {
+        setManagingCommentsPost((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            comments: prev.comments.map((c) => {
+              if (c.id === commentId && c.replies) {
+                return {
+                  ...c,
+                  replies: c.replies.filter((r) => r.id !== replyId),
+                };
+              }
+              return c;
+            }),
+          };
+        });
+      }
+
+      showToast('Reply deleted successfully.');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to delete reply.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Simple Markdown Renderer matching post page styling
@@ -630,6 +732,13 @@ export default function EditPostsClient() {
 
                   <div className="flex gap-2 w-full sm:w-auto justify-end border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
                     <button
+                      type="button"
+                      onClick={() => setManagingCommentsPost(post)}
+                      className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer text-foreground/75"
+                    >
+                      <MessageSquare className="h-3 w-3 text-muted" /> Comments ({post.comments?.length || 0})
+                    </button>
+                    <button
                       onClick={() => handleEditClick(post)}
                       className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
                     >
@@ -648,6 +757,117 @@ export default function EditPostsClient() {
           </section>
         )}
       </main>
+
+      {/* ── Manage Comments Modal ── */}
+      {managingCommentsPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card border border-border w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-fade-in-up flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border bg-muted-background px-5 py-4">
+              <div>
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-foreground">
+                  Manage Comments
+                </h3>
+                <p className="text-[10px] text-muted truncate max-w-[320px] mt-0.5 font-semibold">
+                  {managingCommentsPost.title}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManagingCommentsPost(null)}
+                className="text-muted hover:text-foreground p-1 rounded-lg hover:bg-muted-background transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              {managingCommentsPost.comments.length === 0 ? (
+                <div className="text-center py-10 text-muted space-y-2">
+                  <MessageSquare className="h-8 w-8 mx-auto text-muted/60" />
+                  <p className="text-xs font-semibold">No comments on this post yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {managingCommentsPost.comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="flex items-start justify-between gap-3 p-3.5 rounded-xl border border-border bg-muted-background/30 hover:bg-muted-background/60 transition-colors"
+                    >
+                      <div className="flex gap-3 flex-1">
+                        <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                          {comment.author[0].toUpperCase()}
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-foreground">{comment.author}</span>
+                            <span className="text-[10px] text-muted">{comment.createdAt}</span>
+                          </div>
+                          <p className="text-xs text-foreground/80 leading-relaxed font-medium">
+                            {comment.content}
+                          </p>
+                          {comment.replies && comment.replies.length > 0 && (
+                            <div className="mt-3.5 pl-4 border-l-2 border-border/80 space-y-3">
+                              {comment.replies.map((reply) => (
+                                <div key={reply.id} className="flex items-start justify-between gap-3 group/reply">
+                                  <div className="flex gap-2.5 flex-1">
+                                    <div className="h-6 w-6 shrink-0 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-bold text-accent">
+                                      {reply.author[0].toUpperCase()}
+                                    </div>
+                                    <div className="space-y-0.5 flex-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[11px] font-bold text-foreground">{reply.author}</span>
+                                        <span className="text-[9px] text-muted">{reply.createdAt}</span>
+                                      </div>
+                                      <p className="text-[11px] text-foreground/75 leading-relaxed font-medium">
+                                        {reply.content}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteReply(managingCommentsPost.id, comment.id, reply.id)}
+                                    disabled={uploading}
+                                    className="text-muted hover:text-red-500 p-1 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                    title="Delete Reply"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComment(managingCommentsPost.id, comment.id)}
+                        disabled={uploading}
+                        className="text-muted hover:text-red-500 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                        title="Delete Comment"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-border bg-muted-background/40 p-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setManagingCommentsPost(null)}
+                className="rounded-full border border-border bg-card hover:bg-muted-background px-5 py-2 text-xs font-bold transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

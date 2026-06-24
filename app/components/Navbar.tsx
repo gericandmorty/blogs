@@ -54,6 +54,24 @@ export default function Navbar({
   const [searchFocused, setSearchFocused] = useState(false);
   const osRef = useRef<HTMLDivElement>(null);
 
+  const [localSearch, setLocalSearch] = useState(searchQuery);
+
+  // Sync local search when parent query changes (e.g. cleared)
+  useEffect(() => {
+    setLocalSearch(searchQuery);
+  }, [searchQuery]);
+
+  // Debounce search update to parent component
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== searchQuery) {
+        setSearchQuery?.(localSearch);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [localSearch, setSearchQuery, searchQuery]);
+
   // Close OS dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -171,16 +189,19 @@ export default function Navbar({
               <Search className="h-4 w-4 text-muted shrink-0" />
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery?.(e.target.value)}
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 placeholder="Search…"
                 className="w-full bg-transparent text-sm focus:outline-none placeholder-muted text-foreground"
               />
-              {searchQuery && (
+              {localSearch && (
                 <button
-                  onClick={() => setSearchQuery?.('')}
+                  onClick={() => {
+                    setLocalSearch('');
+                    setSearchQuery?.('');
+                  }}
                   className="text-muted hover:text-foreground text-xs cursor-pointer"
                 >
                   ✕
@@ -223,8 +244,8 @@ export default function Navbar({
               <Search className="h-4 w-4 text-muted shrink-0" />
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery?.(e.target.value)}
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
                 placeholder="Search posts…"
                 className="w-full bg-transparent text-sm focus:outline-none placeholder-muted"
               />
