@@ -1,0 +1,100 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
+import BlogPostCard from '../../components/BlogPostCard';
+import { fetchPostsByCategory } from '../../data';
+import { Terminal, Search } from 'lucide-react';
+import { BlogPost } from '../../types';
+
+export default function LinuxPage() {
+  const [postsList, setPostsList] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchPostsByCategory('linux')
+      .then((data) => {
+        setPostsList(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  const posts = postsList.filter((p) =>
+    !searchQuery.trim() ||
+    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} showSearch />
+
+      {loading ? (
+        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-10 flex items-center justify-center">
+          <div className="text-muted text-sm font-semibold animate-pulse">Loading posts...</div>
+        </main>
+      ) : (
+        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-10 space-y-8">
+        {/* Hero banner */}
+        <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 animate-fade-in-up">
+          <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full blur-3xl"
+               style={{ background: 'color-mix(in srgb, var(--tag-linux) 15%, transparent)' }} />
+          <div className="relative flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 items-center justify-center rounded-3xl overflow-hidden shadow-xl border border-border bg-background p-2.5 transition-transform duration-300 hover:scale-105">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/os/linux/tux.png" alt="Tux logo" className="h-full w-full object-contain" />
+            </div>
+            <div className="text-center sm:text-left">
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">Linux</h1>
+              <p className="text-muted text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
+                Terminal commands, system configuration, shell scripting, and everything
+                about living in the Linux ecosystem as a developer.
+              </p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary mt-3">
+                {postsList.length} {postsList.length === 1 ? 'post' : 'posts'}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Mobile search */}
+        <div className="sm:hidden flex items-center gap-2 rounded-lg border border-border bg-muted-background px-3 py-2">
+          <Search className="h-4 w-4 text-muted shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Linux posts…"
+            className="w-full bg-transparent text-sm focus:outline-none placeholder-muted"
+          />
+        </div>
+
+        {/* Posts */}
+        {posts.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-12 text-center">
+            <p className="text-muted font-semibold">No posts found.</p>
+            <button onClick={() => setSearchQuery('')} className="mt-3 text-sm text-primary hover:underline cursor-pointer">
+              Clear search
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up">
+            {posts.map((post) => (
+              <BlogPostCard key={post.id} post={post} />
+            ))}
+          </div>
+        )}
+        </main>
+      )}
+
+      <Footer />
+    </div>
+  );
+}
