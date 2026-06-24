@@ -21,7 +21,7 @@ export default function BlogPostCard({ post, featured = false }: BlogPostCardPro
   const meta = CATEGORY_META[post.category];
 
   return (
-    <Link href={`/blog/${post.slug}`} className="group block">
+    <Link href={`/os/linux/blog/${post.slug}`} className="group block">
       <article
         className={`card-hover rounded-xl border border-border bg-card text-card-foreground overflow-hidden ${
           featured ? 'flex flex-col md:flex-row gap-0' : ''
@@ -30,7 +30,11 @@ export default function BlogPostCard({ post, featured = false }: BlogPostCardPro
         {/* Cover image (if present) */}
         {post.coverImageUrl && (
           <div
-            className={`overflow-hidden bg-muted-background ${
+            className={`overflow-hidden flex items-center justify-center ${
+              post.coverImageUrl.includes('arch') || post.coverImageUrl.includes('fedora') || post.coverImageUrl.includes('tux')
+                ? 'bg-[#0f141c]'
+                : 'bg-muted-background'
+            } ${
               featured
                 ? 'md:w-2/5 h-52 md:h-auto shrink-0'
                 : 'h-44 w-full'
@@ -40,7 +44,11 @@ export default function BlogPostCard({ post, featured = false }: BlogPostCardPro
             <img
               src={post.coverImageUrl}
               alt={post.title}
-              className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+              className={`h-full w-full transition-all duration-300 group-hover:scale-[1.02] ${
+                post.coverImageUrl.includes('arch') || post.coverImageUrl.includes('fedora') || post.coverImageUrl.includes('tux')
+                  ? 'object-contain p-6'
+                  : 'object-cover'
+              }`}
               loading="lazy"
             />
           </div>

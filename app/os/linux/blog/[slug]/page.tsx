@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, use, useEffect } from 'react';
 import { notFound, useRouter } from 'next/navigation';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
-import { getPostBySlug, ALL_POSTS } from '../../data';
+import Navbar from '../../../../components/Navbar';
+import Footer from '../../../../components/Footer';
+import { fetchPostBySlug, fetchPostsByCategory, addCommentToPost } from '../../../../data';
 import {
   ArrowLeft,
   Calendar,
@@ -18,8 +18,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
-import { Category, Comment } from '../../types';
-import BlogPostCard from '../../components/BlogPostCard';
+import { Category, Comment, BlogPost } from '../../../../types';
+import BlogPostCard from '../../../../components/BlogPostCard';
 
 const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; tagClass: string }> = {
   linux:   { label: 'Linux',   icon: <Terminal className="h-3.5 w-3.5" />, tagClass: 'tag-linux'   },
@@ -28,39 +28,79 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; ta
   general: { label: 'General', icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general' },
 };
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug);
+export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const router = useRouter();
 
-  const [comments, setComments] = useState<Comment[]>(post?.comments ?? []);
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [related, setRelated] = useState<BlogPost[]>([]);
+
+  useEffect(() => {
+    fetchPostBySlug(slug)
+      .then((data) => {
+        setPost(data);
+        if (data) {
+          setComments(data.comments || []);
+          fetchPostsByCategory(data.category)
+            .then((allCatPosts) => {
+              setRelated(allCatPosts.filter((p) => p.id !== data.id).slice(0, 2));
+            })
+            .catch(console.error);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [slug]);
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || !post) return;
+    try {
+      const commentData = {
+        author: authorName.trim() || 'Anonymous',
+        content: newComment.trim(),
+      };
+      const updatedPost = await addCommentToPost(post.id, commentData);
+      
+      const newCommentObj: Comment = {
+        id: updatedPost.comments[updatedPost.comments.length - 1]?._id || `c-${Date.now()}`,
+        author: commentData.author,
+        content: commentData.content,
+        createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        replies: [],
+      };
+      setComments((prev) => [newCommentObj, ...prev]);
+      setNewComment('');
+      setAuthorName('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background text-foreground">
+        <Navbar />
+        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 flex items-center justify-center">
+          <div className="text-muted text-sm font-semibold animate-pulse">Loading post...</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!post) {
     notFound();
   }
 
   const meta = CATEGORY_META[post.category];
-
-  // Related posts (same category, different post)
-  const related = ALL_POSTS.filter(
-    (p) => p.category === post.category && p.id !== post.id
-  ).slice(0, 2);
-
-  const handleSubmitComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    const comment: Comment = {
-      id: `c-${Date.now()}`,
-      author: authorName.trim() || 'Anonymous',
-      content: newComment.trim(),
-      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      replies: [],
-    };
-    setComments((prev) => [comment, ...prev]);
-    setNewComment('');
-    setAuthorName('');
-  };
 
   // Simple markdown-ish rendering
   const renderContent = (content: string) => {
@@ -138,6 +178,26 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             </table>
           </div>
         );
+      } else if (line.startsWith('![')) {
+        const match = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+        if (match) {
+          const [, alt, src] = match;
+          elements.push(
+            <div key={key++} className="my-6 overflow-hidden rounded-xl border border-border bg-card p-1 max-w-lg mx-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className="w-full h-auto max-h-96 object-contain rounded-lg mx-auto" />
+              {alt && <p className="text-center text-xs text-muted mt-2">{alt}</p>}
+            </div>
+          );
+          i++;
+        } else {
+          elements.push(
+            <p key={key++} className="text-sm leading-7 text-foreground/85">
+              {renderInline(line)}
+            </p>
+          );
+          i++;
+        }
       } else if (line.startsWith('- ') || line.startsWith('❌ ') || line.startsWith('✨')) {
         elements.push(
           <li key={key++} className="text-sm text-foreground/85 leading-relaxed ml-4 list-disc mb-1">
@@ -200,12 +260,20 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
           <article className="animate-fade-in-up space-y-6">
             {/* Cover image */}
             {post.coverImageUrl && (
-              <div className="overflow-hidden rounded-xl border border-border">
+              <div className={`overflow-hidden rounded-xl border border-border flex items-center justify-center h-56 sm:h-72 ${
+                post.coverImageUrl.includes('arch') || post.coverImageUrl.includes('fedora') || post.coverImageUrl.includes('tux')
+                  ? 'bg-[#0f141c]'
+                  : 'bg-muted-background'
+              }`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={post.coverImageUrl}
                   alt={post.title}
-                  className="w-full h-56 sm:h-72 object-cover"
+                  className={`h-full w-full ${
+                    post.coverImageUrl.includes('arch') || post.coverImageUrl.includes('fedora') || post.coverImageUrl.includes('tux')
+                      ? 'object-contain p-6'
+                      : 'object-cover'
+                  }`}
                 />
               </div>
             )}
@@ -343,7 +411,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
                 {related.map((rp) => (
                   <Link
                     key={rp.id}
-                    href={`/blog/${rp.slug}`}
+                    href={`/os/linux/blog/${rp.slug}`}
                     className="block rounded-lg border border-border bg-card p-3 card-hover"
                   >
                     <p className="text-sm font-semibold text-foreground group-hover:text-primary line-clamp-2">

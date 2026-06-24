@@ -1,0 +1,655 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  Eye,
+  FileText,
+  AlertCircle,
+  Home,
+  CheckCircle,
+  Clock,
+  Tag,
+  BookOpen,
+  Upload,
+} from 'lucide-react';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import { fetchAllPosts, updatePost, createPost, deletePost, uploadImage } from '../data';
+import { BlogPost, Category } from '../types';
+
+export default function EditPostsClient() {
+  const router = useRouter();
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Editor states
+  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editSlug, setEditSlug] = useState('');
+  const [editExcerpt, setEditExcerpt] = useState('');
+  const [editCategory, setEditCategory] = useState<Category>('linux');
+  const [editTags, setEditTags] = useState('');
+  const [editReadTime, setEditReadTime] = useState(5);
+  const [editCoverImage, setEditCoverImage] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+
+  // Active view tab in editor (edit vs preview)
+  const [editorTab, setEditorTab] = useState<'edit' | 'preview' | 'split'>('split');
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchAllPosts();
+      setPosts(data);
+      setError(null);
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to fetch posts from the backend. Make sure the backend server is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showToast = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => {
+      setSuccessMsg(null);
+    }, 3000);
+  };
+
+  const handleEditClick = (post: BlogPost) => {
+    setEditingPost(post);
+    setIsCreating(false);
+    setEditTitle(post.title);
+    setEditSlug(post.slug);
+    setEditExcerpt(post.excerpt);
+    setEditCategory(post.category);
+    setEditTags(post.tags.join(', '));
+    setEditReadTime(post.readTimeMinutes);
+    setEditCoverImage(post.coverImageUrl || '');
+    setEditContent(post.content);
+    setPendingImageFile(null);
+    setEditorTab('split');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCreateClick = () => {
+    setEditingPost(null);
+    setIsCreating(true);
+    setEditTitle('');
+    setEditSlug('');
+    setEditExcerpt('');
+    setEditCategory('linux');
+    setEditTags('');
+    setEditReadTime(5);
+    setEditCoverImage('');
+    setEditContent('');
+    setPendingImageFile(null);
+    setEditorTab('split');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTitleChange = (title: string) => {
+    setEditTitle(title);
+    // Generate clean slug automatically
+    const slug = title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_]+/g, '-');
+    setEditSlug(slug);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle || !editSlug || !editContent || !editExcerpt) {
+      setError('Please fill in all required fields (Title, Slug, Excerpt, Content).');
+      return;
+    }
+
+    let finalCoverUrl = editCoverImage;
+
+    if (pendingImageFile) {
+      try {
+        setUploading(true);
+        setError(null);
+        showToast('Uploading cover image to Cloudinary...');
+        const res = await uploadImage(pendingImageFile);
+        finalCoverUrl = res.url;
+        setEditCoverImage(res.url);
+        setPendingImageFile(null);
+      } catch (err: any) {
+        console.error(err);
+        setError(`Failed to upload image to Cloudinary: ${err.message || err}`);
+        setUploading(false);
+        return;
+      }
+    }
+
+    const payload = {
+      title: editTitle,
+      slug: editSlug,
+      excerpt: editExcerpt,
+      category: editCategory,
+      tags: editTags.split(',').map((t) => t.trim()).filter(Boolean),
+      readTimeMinutes: Number(editReadTime),
+      coverImageUrl: finalCoverUrl || undefined,
+      content: editContent,
+    };
+
+    try {
+      if (isCreating) {
+        // Create new post on backend
+        await createPost({
+          ...payload,
+          comments: [],
+        });
+        showToast('Post created successfully!');
+      } else if (editingPost) {
+        // Update existing post
+        await updatePost(editingPost.id, payload);
+        showToast('Post updated successfully!');
+      }
+
+      setIsCreating(false);
+      setEditingPost(null);
+      setError(null);
+      loadPosts();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to save post to the database.');
+    }
+  };
+
+  const handleDelete = async (postId: string, title: string) => {
+    if (!confirm(`Are you absolutely sure you want to delete "${title}"?`)) {
+      return;
+    }
+    try {
+      await deletePost(postId);
+      showToast('Post deleted successfully.');
+      loadPosts();
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to delete post.');
+    }
+  };
+
+  const cancelEdit = () => {
+    setIsCreating(false);
+    setEditingPost(null);
+    setError(null);
+    setPendingImageFile(null);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPendingImageFile(file);
+    const localUrl = URL.createObjectURL(file);
+    setEditCoverImage(localUrl);
+  };
+
+  // Simple Markdown Renderer matching post page styling
+  const renderMarkdown = (content: string) => {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+    let key = 0;
+
+    const renderInline = (text: string): React.ReactNode => {
+      const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+      return parts.map((part, idx) => {
+        if (part.startsWith('`') && part.endsWith('`')) {
+          return <code key={idx} className="code-inline">{part.slice(1, -1)}</code>;
+        }
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={idx} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+    };
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (line.startsWith('## ')) {
+        elements.push(
+          <h2 key={key++} className="text-xl font-bold text-foreground mt-6 mb-2 pb-1 border-b border-border">
+            {line.slice(3)}
+          </h2>
+        );
+        i++;
+      } else if (line.startsWith('### ')) {
+        elements.push(
+          <h3 key={key++} className="text-base font-bold text-foreground mt-4 mb-1">
+            {line.slice(4)}
+          </h3>
+        );
+        i++;
+      } else if (line.startsWith('```')) {
+        const lang = line.slice(3).trim();
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith('```')) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++;
+        elements.push(
+          <div key={key++} className="relative my-3">
+            {lang && (
+              <div className="flex items-center gap-2 rounded-t-lg border border-border border-b-0 bg-muted-background px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted">
+                {lang}
+              </div>
+            )}
+            <pre className="overflow-x-auto rounded-lg bg-[var(--code-bg)] border border-border p-3 text-xs leading-relaxed text-secondary font-mono">
+              <code>{codeLines.join('\n')}</code>
+            </pre>
+          </div>
+        );
+      } else if (line.startsWith('- ')) {
+        elements.push(
+          <li key={key++} className="text-sm text-foreground/85 leading-relaxed ml-4 list-disc mb-1">
+            {renderInline(line.slice(2))}
+          </li>
+        );
+        i++;
+      } else if (line.trim() === '') {
+        elements.push(<div key={key++} className="h-2" />);
+        i++;
+      } else {
+        elements.push(
+          <p key={key++} className="text-sm leading-6 text-foreground/85">
+            {renderInline(line)}
+          </p>
+        );
+        i++;
+      }
+    }
+
+    return <div className="space-y-2">{elements}</div>;
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <Navbar />
+
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-6">
+        {/* Alerts and Toast */}
+        {error && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex gap-3 text-red-500 text-sm items-center">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <p className="font-medium">{error}</p>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 flex gap-3 text-emerald-400 text-sm items-center animate-fade-in-up">
+            <CheckCircle className="h-5 w-5 shrink-0" />
+            <p className="font-medium">{successMsg}</p>
+          </div>
+        )}
+
+        {/* Dashboard Title Header */}
+        <section className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-border">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight">Admin Console</h1>
+            <p className="text-xs text-muted mt-1">Manage, create, and edit blog posts dynamically</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-bold transition-all hover:bg-muted-background cursor-pointer"
+            >
+              <Home className="h-3.5 w-3.5" /> View Site
+            </button>
+            {!isCreating && !editingPost && (
+              <button
+                onClick={handleCreateClick}
+                className="flex items-center gap-1.5 rounded-full bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-bold text-white transition-all shadow-sm cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> New Post
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Editor Mode Form */}
+        {(isCreating || editingPost) && (
+          <section className="rounded-xl border border-border bg-card overflow-hidden shadow-md animate-fade-in-up">
+            <div className="flex items-center justify-between border-b border-border bg-muted-background px-5 py-3">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-foreground">
+                {isCreating ? 'Creating New Post' : `Editing: ${editingPost?.title}`}
+              </span>
+              <button onClick={cancelEdit} className="text-muted hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase">Post Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    placeholder="e.g. My Awesome Setup Distro"
+                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase">URL Slug (Auto-generated) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editSlug}
+                    onChange={(e) => setEditSlug(e.target.value)}
+                    placeholder="my-awesome-setup-distro"
+                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase">Category *</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value as Category)}
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="linux">Linux</option>
+                    <option value="windows">Windows</option>
+                    <option value="coding">Coding</option>
+                    <option value="general">General</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase">Read Time (minutes)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editReadTime}
+                    onChange={(e) => setEditReadTime(Number(e.target.value))}
+                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase">Tags (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={editTags}
+                    onChange={(e) => setEditTags(e.target.value)}
+                    placeholder="linux, setup, zsh"
+                    className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted uppercase">Cover Image (Cloudinary Upload)</label>
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                  {editCoverImage ? (
+                    <div className="relative group rounded-lg overflow-hidden border border-border h-32 w-48 flex items-center justify-center bg-[#0f141c] shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={editCoverImage} alt="Cover Preview" className="h-full object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCoverImage('');
+                          setPendingImageFile(null);
+                        }}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" /> Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="cover-image-upload"
+                      className="flex flex-col items-center justify-center h-32 w-48 rounded-lg border border-dashed border-border hover:border-primary/50 bg-muted-background/30 hover:bg-muted-background/60 transition-all cursor-pointer shrink-0"
+                    >
+                      {uploading ? (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Uploading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1.5 text-muted hover:text-foreground">
+                          <Upload className="h-6 w-6" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Upload Cover</span>
+                        </div>
+                      )}
+                    </label>
+                  )}
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="cover-image-upload"
+                    disabled={uploading}
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+
+                  <div className="text-xs text-muted leading-relaxed">
+                    <p className="font-semibold text-foreground">Select an image to upload directly to Cloudinary.</p>
+                    <p className="mt-1">Supported formats: JPEG, PNG, WEBP, GIF. Images are saved to your blogs folder automatically.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase">Excerpt / Short Description *</label>
+                <textarea
+                  rows={2}
+                  required
+                  value={editExcerpt}
+                  onChange={(e) => setEditExcerpt(e.target.value)}
+                  placeholder="Provide a short summary that will be displayed in post cards..."
+                  className="w-full rounded-lg border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+                />
+              </div>
+
+              {/* Splitted Editor + Preview Section */}
+              <div className="space-y-2 border-t border-border pt-4">
+                <div className="flex justify-between items-center bg-muted-background/40 p-1.5 rounded-lg border border-border max-w-[280px]">
+                  <button
+                    type="button"
+                    onClick={() => setEditorTab('edit')}
+                    className={`flex-1 text-center py-1 text-xs font-bold rounded-md transition-all ${
+                      editorTab === 'edit' ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-foreground'
+                    }`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorTab('preview')}
+                    className={`flex-1 text-center py-1 text-xs font-bold rounded-md transition-all ${
+                      editorTab === 'preview' ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-foreground'
+                    }`}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorTab('split')}
+                    className={`flex-1 text-center py-1 text-xs font-bold rounded-md transition-all ${
+                      editorTab === 'split' ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-foreground'
+                    }`}
+                  >
+                    Split
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4" style={{ display: editorTab === 'split' ? 'grid' : 'block' }}>
+                  {/* TextArea Editor Column */}
+                  {(editorTab === 'edit' || editorTab === 'split') && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-muted uppercase">Content (Markdown supported) *</label>
+                      <textarea
+                        rows={16}
+                        required
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Write your article in markdown format..."
+                        className="w-full rounded-lg border border-border bg-[var(--code-bg)] p-3 text-sm focus:outline-none focus:border-primary transition-colors resize-y text-secondary font-mono leading-relaxed"
+                      />
+                    </div>
+                  )}
+
+                  {/* Rendered Preview Column */}
+                  {(editorTab === 'preview' || editorTab === 'split') && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-muted uppercase">Live Preview</label>
+                      <div className="w-full rounded-lg border border-border bg-card p-4 overflow-y-auto max-h-[352px] lg:max-h-[352px] prose dark:prose-invert">
+                        {editCoverImage && (
+                          <div className="mb-4 rounded-lg overflow-hidden border border-border h-32 flex items-center justify-center bg-[#0f141c]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={editCoverImage} alt="Cover Preview" className="h-full object-contain" />
+                          </div>
+                        )}
+                        <h1 className="text-lg font-bold border-b border-border pb-1 mb-2">{editTitle || 'Untitled Post'}</h1>
+                        {editContent ? renderMarkdown(editContent) : <p className="text-xs text-muted italic">Write content to see preview...</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Action row */}
+              <div className="flex justify-end gap-2 border-t border-border pt-4">
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  disabled={uploading}
+                  className="rounded-full border border-border bg-card hover:bg-muted-background px-5 py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading}
+                  className="flex items-center gap-1.5 rounded-full bg-primary hover:bg-primary-hover px-6 py-2 text-xs font-bold text-white transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" /> Save Post
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* Loading and empty states */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-12 space-y-3">
+            <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs text-muted font-medium animate-pulse">Fetching blog posts...</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-12 text-center">
+            <BookOpen className="h-8 w-8 text-muted mx-auto mb-3" />
+            <p className="text-muted font-semibold">No posts found in database.</p>
+            <p className="text-xs text-muted mt-1">Start by creating your first post.</p>
+            <button
+              onClick={handleCreateClick}
+              className="mt-4 rounded-full bg-primary hover:bg-primary-hover px-5 py-2 text-xs font-bold text-white transition-colors shadow-sm cursor-pointer"
+            >
+              Add first post
+            </button>
+          </div>
+        ) : (
+          /* Posts Management Grid/List */
+          <section className="space-y-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted">Active Posts ({posts.length})</h2>
+            <div className="grid grid-cols-1 gap-3">
+              {posts.map((post) => (
+                <div
+                  key={post.id}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card transition-all hover:bg-muted-background/30"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Tiny cover thumbnail */}
+                    {post.coverImageUrl ? (
+                      <div className="h-12 w-12 rounded-lg overflow-hidden border border-border bg-[#0f141c] flex items-center justify-center shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={post.coverImageUrl} alt="" className="h-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className="h-12 w-12 rounded-lg border border-border bg-muted-background flex items-center justify-center shrink-0">
+                        <FileText className="h-5 w-5 text-muted" />
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-sm text-foreground line-clamp-1">{post.title}</h3>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.2 font-semibold tag-${post.category}`}>
+                          {post.category}
+                        </span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {post.readTimeMinutes} min</span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1"><Tag className="h-3 w-3" /> {post.tags.length} tags</span>
+                        <span>·</span>
+                        <span>{post.publishedAt}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 w-full sm:w-auto justify-end border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
+                    <button
+                      onClick={() => handleEditClick(post)}
+                      className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Edit2 className="h-3 w-3" /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(post.id, post.title)}
+                      className="flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
