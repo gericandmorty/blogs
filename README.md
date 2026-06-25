@@ -1,45 +1,29 @@
-# DevJournal Frontend
+# My Developer Journal
 
-The web user interface for DevJournal, built using Next.js, TailwindCSS, and Lucide React.
+Welcome to my personal developer journal and tracking diary. I built this space to document my learning journey, log my technical discoveries, and maintain a quick-reference guide for setups and configurations that I use in my daily full-stack development.
 
-## Features
+## Why I Keep This Journal
 
-- Clean developer journal interface with dark/light themes.
-- Nested, collapsible navigation menu (OS -> Linux/Windows, Coding -> Languages/Databases).
-- Dynamic tag filtering using Next.js search parameters and Suspense.
-- Category-aware dynamic routes for all posts (e.g., `/coding/languages/blog/[slug]`).
-- Admin panel console for creating, editing, and deleting blog posts with featured toggles.
-- Cloudinary client service wrapper for handling cover image uploads.
+- **Tracking Progress**: Logging what I learn as I explore new technologies, tools, and paradigms.
+- **Reference Sheets**: Keeping documentation of complex configurations, CLI commands, and environmental setups so I do not have to search for them twice.
+- **Sharing Discoveries**: Writing technical guides and setup walkthroughs that can help other developers facing the same challenges.
 
-## Tech Stack
+## What I Write About
 
-- Framework: Next.js (App Router)
-- Styling: TailwindCSS
-- Icons: Lucide React
+I organize my logs and articles into two major areas of focus:
 
-## Environment Configuration
+### 1. Operating Systems
+- **Linux**: Notes on installing and configuring distributions (like Arch Linux and Fedora Workstation), command-line productivity hacks, custom terminal/shell themes, and system configurations.
+- **Windows**: Configuration logs for Windows development, including WSL2 setup tips, virtualization adjustments, and Windows Terminal customization.
 
-Create a `.env.local` file in the frontend directory with the following variables:
+### 2. Development and Databases
+- **Programming Languages**: Tutorials, exercises, and design patterns for languages I write in, primarily JavaScript, TypeScript, Python, and Go.
+- **Databases**: Guides on setting up datastores locally or in containers, detailing Redis cache usage, MongoDB CRUD implementations, and PostgreSQL database queries.
 
-```env
-NEXT_PUBLIC_API_URL="http://localhost:5069"
-AUTH_HASH="your-secure-auth-hash"
-```
+## Core Features of My Site
 
-## Setup and Installation
-
-Install dependencies:
-```bash
-npm install
-```
-
-## Running the Application
-
-```bash
-# Development mode
-npm run dev
-
-# Production build and run
-npm run build
-npm run start
-```
+- **Dark-Themed Interface**: A responsive interface crafted for code readability and visual comfort.
+- **Interactive Navigation**: Nested menus that make it easy for readers (and myself) to filter and click through sub-category topics dynamically.
+- **Live Tag Filtering**: Tag-based search that matches articles in real-time.
+- **Hierarchical URL Paths**: URLs that match the category folders (e.g. `/coding/languages/blog/[slug]`), making navigation intuitive.
+- **Admin Management Console**: A secure portal where I can write new posts, edit existing logs, delete articles, or toggle which posts are featured on the home page.
