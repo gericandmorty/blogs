@@ -18,6 +18,7 @@ function mapPostToBlogPost(post: any): BlogPost {
     }),
     readTimeMinutes: post.readTimeMinutes || 5,
     coverImageUrl: post.coverImageUrl || undefined,
+    isFeatured: !!post.isFeatured,
     comments: (post.comments || []).map((c: any) => ({
       id: c._id || `c-${Math.random()}`,
       author: c.author || 'Anonymous',
@@ -193,3 +194,38 @@ export async function deleteReplyFromComment(
   }
   return res.json();
 }
+
+export function getPostHref(post: { category: string; slug: string }): string {
+  switch (post.category) {
+    case 'linux':
+      return `/os/linux/blog/${post.slug}`;
+    case 'windows':
+      return `/os/windows/blog/${post.slug}`;
+    case 'coding':
+      return `/coding/blog/${post.slug}`;
+    case 'languages':
+      return `/coding/languages/blog/${post.slug}`;
+    case 'databases':
+      return `/coding/databases/blog/${post.slug}`;
+    default:
+      return `/blog/${post.slug}`;
+  }
+}
+
+export function getCategoryHref(category: string): string {
+  switch (category) {
+    case 'linux':
+      return '/os/linux';
+    case 'windows':
+      return '/os/windows';
+    case 'coding':
+      return '/coding';
+    case 'languages':
+      return '/coding/languages';
+    case 'databases':
+      return '/coding/databases';
+    default:
+      return '/';
+  }
+}
+

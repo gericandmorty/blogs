@@ -1,4 +1,4 @@
-export type Category = 'linux' | 'windows' | 'coding' | 'general';
+export type Category = 'linux' | 'windows' | 'coding' | 'general' | 'languages' | 'databases';
 
 export interface Comment {
   id: string;
@@ -20,5 +20,6 @@ export interface BlogPost {
   publishedAt: string;
   readTimeMinutes: number;
   coverImageUrl?: string;
+  isFeatured?: boolean;
   comments: Comment[];
 }

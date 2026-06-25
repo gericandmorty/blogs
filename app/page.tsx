@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import { fetchAllPosts } from './data';
+import { fetchAllPosts, getPostHref } from './data';
 import {
   Terminal,
   Code2,
@@ -15,6 +15,7 @@ import {
   Tag,
   ArrowRight,
   MessageSquare,
+  Database,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Category, BlogPost } from './types';
@@ -24,13 +25,17 @@ const CATEGORY_FILTERS: { label: string; value: Category | 'all'; icon: React.Re
   { label: 'Linux',     value: 'linux',   icon: <Terminal  className="h-4 w-4" />, tagClass: 'tag-linux'   },
   { label: 'Windows',   value: 'windows', icon: <Monitor   className="h-4 w-4" />, tagClass: 'tag-windows' },
   { label: 'Coding',    value: 'coding',  icon: <Code2     className="h-4 w-4" />, tagClass: 'tag-coding'  },
+  { label: 'Languages', value: 'languages', icon: <Code2     className="h-4 w-4" />, tagClass: 'tag-coding'  },
+  { label: 'Databases', value: 'databases', icon: <Database  className="h-4 w-4" />, tagClass: 'tag-coding'  },
 ];
 
 const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; tagClass: string }> = {
-  linux:   { label: 'Linux',   icon: <Terminal className="h-3.5 w-3.5" />, tagClass: 'tag-linux'   },
-  windows: { label: 'Windows', icon: <Monitor  className="h-3.5 w-3.5" />, tagClass: 'tag-windows' },
-  coding:  { label: 'Coding',  icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding'  },
-  general: { label: 'General', icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general' },
+  linux:     { label: 'Linux',     icon: <Terminal className="h-3.5 w-3.5" />, tagClass: 'tag-linux'     },
+  windows:   { label: 'Windows',   icon: <Monitor  className="h-3.5 w-3.5" />, tagClass: 'tag-windows'   },
+  coding:    { label: 'Coding',    icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
+  languages: { label: 'Languages', icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
+  databases: { label: 'Databases', icon: <Database className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
+  general:   { label: 'General',   icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general'    },
 };
 
 /* ─────────────────────────────────────────────
@@ -38,18 +43,17 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; ta
 ───────────────────────────────────────────── */
 function ExpandablePostRow({ post, featured = false, defaultExpanded = false }: { post: BlogPost; featured?: boolean; defaultExpanded?: boolean }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [imgError, setImgError] = useState(false);
   const meta = CATEGORY_META[post.category];
 
   const isDark =
     post.coverImageUrl &&
+    !imgError &&
     (post.coverImageUrl.includes('arch') ||
       post.coverImageUrl.includes('fedora') ||
       post.coverImageUrl.includes('tux'));
 
-  const postHref =
-    post.category === 'linux' || post.category === 'windows'
-      ? `/os/${post.category}/blog/${post.slug}`
-      : `/${post.category}/blog/${post.slug}`;
+  const postHref = getPostHref(post);
 
   return (
     <div
@@ -57,13 +61,13 @@ function ExpandablePostRow({ post, featured = false, defaultExpanded = false }: 
         expanded ? 'border-primary shadow-[0_0_0_1px_var(--primary)]' : 'border-border hover:border-border/80'
       } ${featured ? 'ring-1 ring-primary/20' : ''}`}
     >
-      {/* ── Compact row (click to toggle preview) ── */}
+      {/* ── Compact row (click to toggle toggle preview) ── */}
       <button
         onClick={() => setExpanded((v) => !v)}
         className="group w-full flex items-center gap-4 px-4 py-3.5 text-left cursor-pointer"
       >
         {/* Thumbnail / icon */}
-        {post.coverImageUrl ? (
+        {post.coverImageUrl && !imgError ? (
           <div
             className={`h-11 w-11 shrink-0 rounded-lg overflow-hidden flex items-center justify-center ${
               isDark ? 'bg-[#0f141c]' : 'bg-muted-background'
@@ -73,6 +77,7 @@ function ExpandablePostRow({ post, featured = false, defaultExpanded = false }: 
             <img
               src={post.coverImageUrl}
               alt={post.title}
+              onError={() => setImgError(true)}
               className={`h-full w-full ${isDark ? 'object-contain p-1.5' : 'object-cover'}`}
               loading="lazy"
             />
@@ -197,6 +202,8 @@ export default function HomePage() {
 
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
+      if (!post.isFeatured) return false;
+
       const matchesCategory =
         activeCategory === 'all' || post.category === activeCategory;
 
