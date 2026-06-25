@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import {
   Plus,
   Edit2,
@@ -26,6 +26,8 @@ import { BlogPost, Category } from '../types';
 
 export default function EditPostsClient() {
   const router = useRouter();
+  const params = useParams();
+  const authHash = params ? decodeURIComponent(params.hash as string) : undefined;
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export default function EditPostsClient() {
         setUploading(true);
         setError(null);
         showToast('Uploading cover image to Cloudinary...');
-        const res = await uploadImage(pendingImageFile);
+        const res = await uploadImage(pendingImageFile, authHash);
         finalCoverUrl = res.url;
         setEditCoverImage(res.url);
         setPendingImageFile(null);
@@ -160,11 +162,11 @@ export default function EditPostsClient() {
         await createPost({
           ...payload,
           comments: [],
-        });
+        }, authHash);
         showToast('Post created successfully!');
       } else if (editingPost) {
         // Update existing post
-        await updatePost(editingPost.id, payload);
+        await updatePost(editingPost.id, payload, authHash);
         showToast('Post updated successfully!');
       }
 
@@ -183,7 +185,7 @@ export default function EditPostsClient() {
       return;
     }
     try {
-      await deletePost(postId);
+      await deletePost(postId, authHash);
       showToast('Post deleted successfully.');
       loadPosts();
     } catch (err: any) {
@@ -215,7 +217,7 @@ export default function EditPostsClient() {
     try {
       setUploading(true);
       setError(null);
-      await deleteCommentFromPost(postId, commentId);
+      await deleteCommentFromPost(postId, commentId, authHash);
 
       // Update parent list
       setPosts((prevPosts) =>
@@ -257,7 +259,7 @@ export default function EditPostsClient() {
     try {
       setUploading(true);
       setError(null);
-      await deleteReplyFromComment(postId, commentId, replyId);
+      await deleteReplyFromComment(postId, commentId, replyId, authHash);
 
       // Update parent list
       setPosts((prevPosts) =>
