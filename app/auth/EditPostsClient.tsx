@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Plus,
@@ -44,12 +44,40 @@ export default function EditPostsClient() {
   const [editReadTime, setEditReadTime] = useState(5);
   const [editCoverImage, setEditCoverImage] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [editIsFeatured, setEditIsFeatured] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [managingCommentsPost, setManagingCommentsPost] = useState<BlogPost | null>(null);
 
   // Active view tab in editor (edit vs preview)
   const [editorTab, setEditorTab] = useState<'edit' | 'preview' | 'split'>('split');
+
+  // Admin filter states
+  const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all');
+  const [filterFeatured, setFilterFeatured] = useState<'all' | 'featured' | 'standard'>('all');
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+
+  // Filtered posts for admin list view
+  const filteredAdminPosts = useMemo(() => {
+    return posts.filter((post) => {
+      const matchesCategory =
+        filterCategory === 'all' || post.category === filterCategory;
+
+      const matchesFeatured =
+        filterFeatured === 'all' ||
+        (filterFeatured === 'featured' && post.isFeatured) ||
+        (filterFeatured === 'standard' && !post.isFeatured);
+
+      const q = adminSearchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        post.title.toLowerCase().includes(q) ||
+        post.excerpt.toLowerCase().includes(q) ||
+        post.tags.some((t) => t.toLowerCase().includes(q));
+
+      return matchesCategory && matchesFeatured && matchesSearch;
+    });
+  }, [posts, filterCategory, filterFeatured, adminSearchQuery]);
 
   useEffect(() => {
     loadPosts();
@@ -87,6 +115,7 @@ export default function EditPostsClient() {
     setEditReadTime(post.readTimeMinutes);
     setEditCoverImage(post.coverImageUrl || '');
     setEditContent(post.content);
+    setEditIsFeatured(post.isFeatured || false);
     setPendingImageFile(null);
     setEditorTab('split');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -103,6 +132,7 @@ export default function EditPostsClient() {
     setEditReadTime(5);
     setEditCoverImage('');
     setEditContent('');
+    setEditIsFeatured(false);
     setPendingImageFile(null);
     setEditorTab('split');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -154,6 +184,7 @@ export default function EditPostsClient() {
       readTimeMinutes: Number(editReadTime),
       coverImageUrl: finalCoverUrl || undefined,
       content: editContent,
+      isFeatured: editIsFeatured,
     };
 
     try {
@@ -484,7 +515,9 @@ export default function EditPostsClient() {
                   >
                     <option value="linux">Linux</option>
                     <option value="windows">Windows</option>
-                    <option value="coding">Coding</option>
+                    <option value="coding">Coding (General)</option>
+                    <option value="languages">Languages</option>
+                    <option value="databases">Databases</option>
                     <option value="general">General</option>
                   </select>
                 </div>
@@ -510,6 +543,19 @@ export default function EditPostsClient() {
                     className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 py-1">
+                <input
+                  type="checkbox"
+                  id="isFeatured"
+                  checked={editIsFeatured}
+                  onChange={(e) => setEditIsFeatured(e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-background bg-transparent cursor-pointer"
+                />
+                <label htmlFor="isFeatured" className="text-sm font-semibold text-foreground cursor-pointer select-none">
+                  Featured Post (Show on Home Page)
+                </label>
               </div>
 
               <div className="space-y-2">
@@ -696,66 +742,129 @@ export default function EditPostsClient() {
         ) : (
           /* Posts Management Grid/List */
           <section className="space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted">Active Posts ({posts.length})</h2>
-            <div className="grid grid-cols-1 gap-3">
-              {posts.map((post) => (
-                <div
-                  key={post.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card transition-all hover:bg-muted-background/30"
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Tiny cover thumbnail */}
-                    {post.coverImageUrl ? (
-                      <div className="h-12 w-12 rounded-lg overflow-hidden border border-border bg-[#0f141c] flex items-center justify-center shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={post.coverImageUrl} alt="" className="h-full object-contain" />
-                      </div>
-                    ) : (
-                      <div className="h-12 w-12 rounded-lg border border-border bg-muted-background flex items-center justify-center shrink-0">
-                        <FileText className="h-5 w-5 text-muted" />
-                      </div>
-                    )}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/60 pb-3">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
+                Active Posts ({filteredAdminPosts.length} / {posts.length})
+              </h2>
 
-                    <div className="space-y-1">
-                      <h3 className="font-bold text-sm text-foreground line-clamp-1">{post.title}</h3>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.2 font-semibold tag-${post.category}`}>
-                          {post.category}
-                        </span>
-                        <span>·</span>
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {post.readTimeMinutes} min</span>
-                        <span>·</span>
-                        <span className="flex items-center gap-1"><Tag className="h-3 w-3" /> {post.tags.length} tags</span>
-                        <span>·</span>
-                        <span>{post.publishedAt}</span>
+              {/* Filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Search admin posts..."
+                  value={adminSearchQuery}
+                  onChange={(e) => setAdminSearchQuery(e.target.value)}
+                  className="rounded-lg border border-border bg-transparent px-3 py-1.5 text-xs focus:outline-none focus:border-primary placeholder-muted w-full sm:w-44"
+                />
+
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value as Category | 'all')}
+                  className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground/80"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="linux">Linux</option>
+                  <option value="windows">Windows</option>
+                  <option value="coding">Coding</option>
+                  <option value="languages">Languages</option>
+                  <option value="databases">Databases</option>
+                  <option value="general">General</option>
+                </select>
+
+                <select
+                  value={filterFeatured}
+                  onChange={(e) => setFilterFeatured(e.target.value as 'all' | 'featured' | 'standard')}
+                  className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs focus:outline-none focus:border-primary transition-colors cursor-pointer text-foreground/80"
+                >
+                  <option value="all">All Featured/Standard</option>
+                  <option value="featured">Featured Only</option>
+                  <option value="standard">Standard Only</option>
+                </select>
+              </div>
+            </div>
+
+            {filteredAdminPosts.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
+                <p className="text-sm text-muted font-medium">No posts match your active filters.</p>
+                <button
+                  onClick={() => {
+                    setFilterCategory('all');
+                    setFilterFeatured('all');
+                    setAdminSearchQuery('');
+                  }}
+                  className="mt-2 text-xs text-primary hover:underline cursor-pointer"
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {filteredAdminPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card transition-all hover:bg-muted-background/30"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Tiny cover thumbnail */}
+                      {post.coverImageUrl ? (
+                        <div className="h-12 w-12 rounded-lg overflow-hidden border border-border bg-[#0f141c] flex items-center justify-center shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={post.coverImageUrl} alt="" className="h-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="h-12 w-12 rounded-lg border border-border bg-muted-background flex items-center justify-center shrink-0">
+                          <FileText className="h-5 w-5 text-muted" />
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <h3 className="font-bold text-sm text-foreground line-clamp-1 flex items-center gap-1.5">
+                          {post.title}
+                          {post.isFeatured && (
+                            <span className="inline-flex items-center rounded-full bg-primary/20 text-primary px-1.5 py-0.2 text-[9px] font-black uppercase tracking-wider">
+                              Featured
+                            </span>
+                          )}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.2 font-semibold tag-${post.category}`}>
+                            {post.category}
+                          </span>
+                          <span>·</span>
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {post.readTimeMinutes} min</span>
+                          <span>·</span>
+                          <span className="flex items-center gap-1"><Tag className="h-3 w-3" /> {post.tags.length} tags</span>
+                          <span>·</span>
+                          <span>{post.publishedAt}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-2 w-full sm:w-auto justify-end border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
-                    <button
-                      type="button"
-                      onClick={() => setManagingCommentsPost(post)}
-                      className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer text-foreground/75"
-                    >
-                      <MessageSquare className="h-3 w-3 text-muted" /> Comments ({post.comments?.length || 0})
-                    </button>
-                    <button
-                      onClick={() => handleEditClick(post)}
-                      className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
-                    >
-                      <Edit2 className="h-3 w-3" /> Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(post.id, post.title)}
-                      className="flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
-                    >
-                      <Trash2 className="h-3 w-3" /> Delete
-                    </button>
+                    <div className="flex gap-2 w-full sm:w-auto justify-end border-t border-border/40 pt-3 sm:border-0 sm:pt-0">
+                      <button
+                        type="button"
+                        onClick={() => setManagingCommentsPost(post)}
+                        className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer text-foreground/75"
+                      >
+                        <MessageSquare className="h-3 w-3 text-muted" /> Comments ({post.comments?.length || 0})
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(post)}
+                        className="flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-muted-background px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Edit2 className="h-3 w-3" /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(post.id, post.title)}
+                        className="flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
       </main>

@@ -14,9 +14,15 @@ export default function CodingPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchPostsByCategory('coding')
-      .then((data) => {
-        setPostsList(data);
+    Promise.all([
+      fetchPostsByCategory('coding'),
+      fetchPostsByCategory('languages'),
+      fetchPostsByCategory('databases'),
+    ])
+      .then(([codingData, languagesData, databasesData]) => {
+        const merged = [...codingData, ...languagesData, ...databasesData];
+        merged.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+        setPostsList(merged);
         setLoading(false);
       })
       .catch((err) => {

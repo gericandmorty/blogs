@@ -2,14 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Clock, Calendar, ArrowRight, Terminal, Monitor, Code2, Tag } from 'lucide-react';
+import { Clock, Calendar, ArrowRight, Terminal, Monitor, Code2, Tag, Database } from 'lucide-react';
 import { BlogPost, Category } from '../types';
+import { getPostHref } from '../data';
 
 const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; tagClass: string }> = {
-  linux:   { label: 'Linux',   icon: <Terminal className="h-3.5 w-3.5" />, tagClass: 'tag-linux' },
-  windows: { label: 'Windows', icon: <Monitor  className="h-3.5 w-3.5" />, tagClass: 'tag-windows' },
-  coding:  { label: 'Coding',  icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
-  general: { label: 'General', icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general' },
+  linux:     { label: 'Linux',     icon: <Terminal className="h-3.5 w-3.5" />, tagClass: 'tag-linux' },
+  windows:   { label: 'Windows',   icon: <Monitor  className="h-3.5 w-3.5" />, tagClass: 'tag-windows' },
+  coding:    { label: 'Coding',    icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
+  languages: { label: 'Languages', icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
+  databases: { label: 'Databases', icon: <Database className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
+  general:   { label: 'General',   icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general' },
 };
 
 interface BlogPostCardProps {
@@ -19,16 +22,17 @@ interface BlogPostCardProps {
 
 export default function BlogPostCard({ post, featured = false }: BlogPostCardProps) {
   const meta = CATEGORY_META[post.category];
+  const [imgError, setImgError] = React.useState(false);
 
   return (
-    <Link href={`/os/linux/blog/${post.slug}`} className="group block">
+    <Link href={getPostHref(post)} className="group block">
       <article
         className={`card-hover rounded-xl border border-border bg-card text-card-foreground overflow-hidden ${
           featured ? 'flex flex-col md:flex-row gap-0' : ''
         }`}
       >
         {/* Cover image (if present) */}
-        {post.coverImageUrl && (
+        {post.coverImageUrl && !imgError && (
           <div
             className={`overflow-hidden flex items-center justify-center ${
               post.coverImageUrl.includes('arch') || post.coverImageUrl.includes('fedora') || post.coverImageUrl.includes('tux')
@@ -44,6 +48,7 @@ export default function BlogPostCard({ post, featured = false }: BlogPostCardPro
             <img
               src={post.coverImageUrl}
               alt={post.title}
+              onError={() => setImgError(true)}
               className={`h-full w-full transition-all duration-300 group-hover:scale-[1.02] ${
                 post.coverImageUrl.includes('arch') || post.coverImageUrl.includes('fedora') || post.coverImageUrl.includes('tux')
                   ? 'object-contain p-6'
@@ -55,12 +60,12 @@ export default function BlogPostCard({ post, featured = false }: BlogPostCardPro
         )}
 
         {/* No cover: decorative gradient bar */}
-        {!post.coverImageUrl && (
+        {(!post.coverImageUrl || imgError) && (
           <div className="h-1.5 w-full bg-gradient-to-r from-primary via-accent to-secondary opacity-70" />
         )}
 
         {/* Content */}
-        <div className={`p-5 flex flex-col gap-3 ${featured && post.coverImageUrl ? 'flex-1' : ''}`}>
+        <div className={`p-5 flex flex-col gap-3 ${featured && post.coverImageUrl && !imgError ? 'flex-1' : ''}`}>
           {/* Top meta row */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Category pill */}
