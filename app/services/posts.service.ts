@@ -88,12 +88,16 @@ export async function addCommentToPost(
   return res.json();
 }
 
-export async function updatePost(postId: string, postData: any): Promise<BlogPost> {
+export async function updatePost(postId: string, postData: any, authHash?: string): Promise<BlogPost> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
   const res = await fetch(`${API_BASE}/posts/${postId}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(postData),
   });
   if (!res.ok) {
@@ -103,12 +107,16 @@ export async function updatePost(postId: string, postData: any): Promise<BlogPos
   return mapPostToBlogPost(data);
 }
 
-export async function createPost(postData: any): Promise<BlogPost> {
+export async function createPost(postData: any, authHash?: string): Promise<BlogPost> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
   const res = await fetch(`${API_BASE}/posts`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(postData),
   });
   if (!res.ok) {
@@ -118,9 +126,14 @@ export async function createPost(postData: any): Promise<BlogPost> {
   return mapPostToBlogPost(data);
 }
 
-export async function deletePost(postId: string): Promise<any> {
+export async function deletePost(postId: string, authHash?: string): Promise<any> {
+  const headers: Record<string, string> = {};
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
   const res = await fetch(`${API_BASE}/posts/${postId}`, {
     method: 'DELETE',
+    headers,
   });
   if (!res.ok) {
     throw new Error(`Failed to delete post: ${res.statusText}`);
@@ -128,9 +141,14 @@ export async function deletePost(postId: string): Promise<any> {
   return res.json();
 }
 
-export async function deleteCommentFromPost(postId: string, commentId: string): Promise<any> {
+export async function deleteCommentFromPost(postId: string, commentId: string, authHash?: string): Promise<any> {
+  const headers: Record<string, string> = {};
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
   const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}`, {
     method: 'DELETE',
+    headers,
   });
   if (!res.ok) {
     throw new Error(`Failed to delete comment: ${res.statusText}`);
@@ -159,10 +177,16 @@ export async function addReplyToComment(
 export async function deleteReplyFromComment(
   postId: string,
   commentId: string,
-  replyId: string
+  replyId: string,
+  authHash?: string
 ): Promise<any> {
+  const headers: Record<string, string> = {};
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
   const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies/${replyId}`, {
     method: 'DELETE',
+    headers,
   });
   if (!res.ok) {
     throw new Error(`Failed to delete reply: ${res.statusText}`);
