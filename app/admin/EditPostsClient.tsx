@@ -577,6 +577,7 @@ export default function EditPostsClient({ jwtToken }: EditPostsClientProps = {})
                     <option value="coding">Coding (General)</option>
                     <option value="languages">Languages</option>
                     <option value="databases">Databases</option>
+                    <option value="framework">Framework</option>
                     <option value="general">General</option>
                   </select>
                 </div>
@@ -928,6 +929,7 @@ export default function EditPostsClient({ jwtToken }: EditPostsClientProps = {})
                   <option value="coding">Coding</option>
                   <option value="languages">Languages</option>
                   <option value="databases">Databases</option>
+                  <option value="framework">Framework</option>
                   <option value="general">General</option>
                 </select>
 
