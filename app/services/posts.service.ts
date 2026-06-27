@@ -19,6 +19,7 @@ function mapPostToBlogPost(post: any): BlogPost {
     readTimeMinutes: post.readTimeMinutes || 5,
     coverImageUrl: post.coverImageUrl || undefined,
     isFeatured: !!post.isFeatured,
+    isPublic: post.isPublic !== false,
     comments: (post.comments || []).map((c: any) => ({
       id: c._id || `c-${Math.random()}`,
       author: c.author || 'Anonymous',
@@ -42,8 +43,12 @@ function mapPostToBlogPost(post: any): BlogPost {
   };
 }
 
-export async function fetchAllPosts(): Promise<BlogPost[]> {
-  const res = await fetch(`${API_BASE}/posts`);
+export async function fetchAllPosts(authHash?: string): Promise<BlogPost[]> {
+  const headers: Record<string, string> = {};
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
+  const res = await fetch(`${API_BASE}/posts`, { headers });
   if (!res.ok) {
     throw new Error(`Failed to fetch posts: ${res.statusText}`);
   }
@@ -51,8 +56,12 @@ export async function fetchAllPosts(): Promise<BlogPost[]> {
   return data.map(mapPostToBlogPost);
 }
 
-export async function fetchPostsByCategory(category: string): Promise<BlogPost[]> {
-  const res = await fetch(`${API_BASE}/posts?category=${category}`);
+export async function fetchPostsByCategory(category: string, authHash?: string): Promise<BlogPost[]> {
+  const headers: Record<string, string> = {};
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
+  const res = await fetch(`${API_BASE}/posts?category=${category}`, { headers });
   if (!res.ok) {
     throw new Error(`Failed to fetch posts for category ${category}: ${res.statusText}`);
   }
@@ -60,8 +69,12 @@ export async function fetchPostsByCategory(category: string): Promise<BlogPost[]
   return data.map(mapPostToBlogPost);
 }
 
-export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
-  const res = await fetch(`${API_BASE}/posts/${slug}`);
+export async function fetchPostBySlug(slug: string, authHash?: string): Promise<BlogPost | null> {
+  const headers: Record<string, string> = {};
+  if (authHash) {
+    headers['Authorization'] = `Bearer ${authHash}`;
+  }
+  const res = await fetch(`${API_BASE}/posts/${slug}`, { headers });
   if (res.status === 404) {
     return null;
   }
@@ -89,6 +102,23 @@ export async function addCommentToPost(
   return res.json();
 }
 
+async function handleResponse(res: Response, fallbackMessage: string) {
+  if (!res.ok) {
+    let errorMsg = res.statusText;
+    let status = res.status;
+    try {
+      const errData = await res.json();
+      if (errData && errData.message) {
+        errorMsg = Array.isArray(errData.message) ? errData.message.join(', ') : errData.message;
+      }
+    } catch (_) {}
+    const error: any = new Error(`${fallbackMessage}: ${errorMsg}`);
+    error.status = status;
+    throw error;
+  }
+  return res.json();
+}
+
 export async function updatePost(postId: string, postData: any, authHash?: string): Promise<BlogPost> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -101,10 +131,7 @@ export async function updatePost(postId: string, postData: any, authHash?: strin
     headers,
     body: JSON.stringify(postData),
   });
-  if (!res.ok) {
-    throw new Error(`Failed to update post: ${res.statusText}`);
-  }
-  const data = await res.json();
+  const data = await handleResponse(res, 'Failed to update post');
   return mapPostToBlogPost(data);
 }
 
@@ -120,10 +147,7 @@ export async function createPost(postData: any, authHash?: string): Promise<Blog
     headers,
     body: JSON.stringify(postData),
   });
-  if (!res.ok) {
-    throw new Error(`Failed to create post: ${res.statusText}`);
-  }
-  const data = await res.json();
+  const data = await handleResponse(res, 'Failed to create post');
   return mapPostToBlogPost(data);
 }
 
@@ -136,10 +160,7 @@ export async function deletePost(postId: string, authHash?: string): Promise<any
     method: 'DELETE',
     headers,
   });
-  if (!res.ok) {
-    throw new Error(`Failed to delete post: ${res.statusText}`);
-  }
-  return res.json();
+  return handleResponse(res, 'Failed to delete post');
 }
 
 export async function deleteCommentFromPost(postId: string, commentId: string, authHash?: string): Promise<any> {
@@ -151,10 +172,7 @@ export async function deleteCommentFromPost(postId: string, commentId: string, a
     method: 'DELETE',
     headers,
   });
-  if (!res.ok) {
-    throw new Error(`Failed to delete comment: ${res.statusText}`);
-  }
-  return res.json();
+  return handleResponse(res, 'Failed to delete comment');
 }
 
 export async function addReplyToComment(
@@ -189,10 +207,7 @@ export async function deleteReplyFromComment(
     method: 'DELETE',
     headers,
   });
-  if (!res.ok) {
-    throw new Error(`Failed to delete reply: ${res.statusText}`);
-  }
-  return res.json();
+  return handleResponse(res, 'Failed to delete reply');
 }
 
 export function getPostHref(post: { category: string; slug: string }): string {

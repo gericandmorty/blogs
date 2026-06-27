@@ -21,5 +21,6 @@ export interface BlogPost {
   readTimeMinutes: number;
   coverImageUrl?: string;
   isFeatured?: boolean;
+  isPublic?: boolean;
   comments: Comment[];
 }
