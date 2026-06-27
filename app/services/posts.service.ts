@@ -43,12 +43,27 @@ function mapPostToBlogPost(post: any): BlogPost {
   };
 }
 
-export async function fetchAllPosts(authHash?: string): Promise<BlogPost[]> {
+export async function fetchAllPosts(
+  authHash?: string,
+  page?: number,
+  limit?: number,
+  search?: string,
+  category?: string
+): Promise<BlogPost[]> {
   const headers: Record<string, string> = {};
   if (authHash) {
     headers['Authorization'] = `Bearer ${authHash}`;
   }
-  const res = await fetch(`${API_BASE}/posts`, { headers });
+  const params = new URLSearchParams();
+  if (page) params.append('page', page.toString());
+  if (limit) params.append('limit', limit.toString());
+  if (search) params.append('search', search);
+  if (category && category !== 'all') params.append('category', category);
+
+  const queryStr = params.toString();
+  const url = `${API_BASE}/posts${queryStr ? `?${queryStr}` : ''}`;
+
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     throw new Error(`Failed to fetch posts: ${res.statusText}`);
   }
@@ -57,16 +72,7 @@ export async function fetchAllPosts(authHash?: string): Promise<BlogPost[]> {
 }
 
 export async function fetchPostsByCategory(category: string, authHash?: string): Promise<BlogPost[]> {
-  const headers: Record<string, string> = {};
-  if (authHash) {
-    headers['Authorization'] = `Bearer ${authHash}`;
-  }
-  const res = await fetch(`${API_BASE}/posts?category=${category}`, { headers });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch posts for category ${category}: ${res.statusText}`);
-  }
-  const data = await res.json();
-  return data.map(mapPostToBlogPost);
+  return fetchAllPosts(authHash, undefined, undefined, undefined, category);
 }
 
 export async function fetchPostBySlug(slug: string, authHash?: string): Promise<BlogPost | null> {

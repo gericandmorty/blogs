@@ -17,20 +17,20 @@ const firaCode = Fira_Code({
 
 export const metadata: Metadata = {
   title: {
-    default: "Geric's Dev Journal",
-    template: "%s | Geric's Dev Journal",
+    default: "Code & Thoughts",
+    template: "%s | Code & Thoughts",
   },
   description:
     "Personal documentation & life blog of Geric Morit — a developer's notes on Linux, Windows, coding, and the tech journey.",
   keywords: ["developer blog", "linux", "windows", "coding", "documentation", "Geric Morit"],
   authors: [{ name: "Geric Morit", url: "https://www.gericandmorty.codes" }],
   openGraph: {
-    title: "Geric's Dev Journal",
+    title: "Code & Thoughts",
     description: "A developer's documentation of life in code.",
     type: "website",
   },
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'></svg>",
+    icon: "/icons/icon.png",
   },
 };
 
