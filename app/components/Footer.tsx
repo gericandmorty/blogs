@@ -14,10 +14,12 @@ export default function Footer() {
 
           {/* Brand */}
           <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icons/icon.png" alt="Code & Thoughts logo" className="h-5 w-5 rounded-md object-contain" />
               <span className="text-base font-bold">
-                <span className="text-foreground">dev</span>
-                <span className="gradient-text">journal</span>
+                <span className="text-foreground">Code</span>
+                <span className="gradient-text"> & Thoughts</span>
               </span>
             </div>
             <p className="text-xs text-muted leading-relaxed max-w-xs">

@@ -172,11 +172,13 @@ export default function Navbar({
         {/* ── Logo ── */}
         <Link
           href="/"
-          className="flex items-center gap-1.5 shrink-0 hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 shrink-0 hover:opacity-90 transition-opacity"
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icons/icon.png" alt="Code & Thoughts logo" className="h-6 w-6 rounded-md object-contain" />
           <span className="text-base font-bold tracking-tight">
-            <span className="text-foreground">dev</span>
-            <span className="gradient-text">journal</span>
+            <span className="text-foreground">Code</span>
+            <span className="gradient-text"> & Thoughts</span>
           </span>
         </Link>
 
