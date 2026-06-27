@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Plus,
@@ -18,16 +18,50 @@ import {
   BookOpen,
   Upload,
   MessageSquare,
+  LogOut,
+  Bold,
+  Italic,
+  Heading,
+  Code,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Quote,
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { fetchAllPosts, updatePost, createPost, deletePost, uploadImage, deleteCommentFromPost, deleteReplyFromComment } from '../data';
 import { BlogPost, Category } from '../types';
 
-export default function EditPostsClient() {
+interface EditPostsClientProps {
+  jwtToken?: string;
+}
+
+export default function EditPostsClient({ jwtToken }: EditPostsClientProps = {}) {
   const router = useRouter();
   const params = useParams();
-  const authHash = params ? decodeURIComponent(params.hash as string) : undefined;
+  const authHash = jwtToken || (params ? decodeURIComponent(params.hash as string) : undefined);
+  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertMarkdown = (prefix: string, suffix: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selection = textarea.value.substring(start, end);
+    const replacement = prefix + selection + suffix;
+
+    const newValue = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+    setEditContent(newValue);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selection.length);
+    }, 0);
+  };
+
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +79,7 @@ export default function EditPostsClient() {
   const [editCoverImage, setEditCoverImage] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editIsFeatured, setEditIsFeatured] = useState(false);
+  const [editIsPublic, setEditIsPublic] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [managingCommentsPost, setManagingCommentsPost] = useState<BlogPost | null>(null);
@@ -79,6 +114,24 @@ export default function EditPostsClient() {
     });
   }, [posts, filterCategory, filterFeatured, adminSearchQuery]);
 
+  const handleApiError = (err: any, defaultMsg: string) => {
+    console.error(err);
+    if (err.status === 401) {
+      localStorage.removeItem('admin_jwt');
+      setError('Session expired or unauthorized. Logging you out...');
+      setTimeout(() => {
+        router.push('/admin/login');
+      }, 2000);
+    } else {
+      setError(err.message || defaultMsg);
+    }
+  };
+
+  const handleSignOut = () => {
+    localStorage.removeItem('admin_jwt');
+    router.push('/admin/login');
+  };
+
   useEffect(() => {
     loadPosts();
   }, []);
@@ -86,7 +139,7 @@ export default function EditPostsClient() {
   const loadPosts = async () => {
     try {
       setLoading(true);
-      const data = await fetchAllPosts();
+      const data = await fetchAllPosts(authHash);
       setPosts(data);
       setError(null);
     } catch (err: any) {
@@ -116,6 +169,7 @@ export default function EditPostsClient() {
     setEditCoverImage(post.coverImageUrl || '');
     setEditContent(post.content);
     setEditIsFeatured(post.isFeatured || false);
+    setEditIsPublic(post.isPublic !== false);
     setPendingImageFile(null);
     setEditorTab('split');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -133,6 +187,7 @@ export default function EditPostsClient() {
     setEditCoverImage('');
     setEditContent('');
     setEditIsFeatured(false);
+    setEditIsPublic(true);
     setPendingImageFile(null);
     setEditorTab('split');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -168,8 +223,7 @@ export default function EditPostsClient() {
         setEditCoverImage(res.url);
         setPendingImageFile(null);
       } catch (err: any) {
-        console.error(err);
-        setError(`Failed to upload image to Cloudinary: ${err.message || err}`);
+        handleApiError(err, 'Failed to upload image to Cloudinary');
         setUploading(false);
         return;
       }
@@ -185,6 +239,7 @@ export default function EditPostsClient() {
       coverImageUrl: finalCoverUrl || undefined,
       content: editContent,
       isFeatured: editIsFeatured,
+      isPublic: editIsPublic,
     };
 
     try {
@@ -206,8 +261,7 @@ export default function EditPostsClient() {
       setError(null);
       loadPosts();
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to save post to the database.');
+      handleApiError(err, 'Failed to save post to the database');
     }
   };
 
@@ -220,8 +274,7 @@ export default function EditPostsClient() {
       showToast('Post deleted successfully.');
       loadPosts();
     } catch (err: any) {
-      console.error(err);
-      setError('Failed to delete post.');
+      handleApiError(err, 'Failed to delete post');
     }
   };
 
@@ -276,8 +329,7 @@ export default function EditPostsClient() {
 
       showToast('Comment deleted successfully.');
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to delete comment.');
+      handleApiError(err, 'Failed to delete comment');
     } finally {
       setUploading(false);
     }
@@ -334,8 +386,7 @@ export default function EditPostsClient() {
 
       showToast('Reply deleted successfully.');
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to delete reply.');
+      handleApiError(err, 'Failed to delete reply');
     } finally {
       setUploading(false);
     }
@@ -455,6 +506,14 @@ export default function EditPostsClient() {
             >
               <Home className="h-3.5 w-3.5" /> View Site
             </button>
+            {jwtToken && (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-bold text-red-500 transition-all hover:bg-red-500/5 cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign Out
+              </button>
+            )}
             {!isCreating && !editingPost && (
               <button
                 onClick={handleCreateClick}
@@ -545,17 +604,32 @@ export default function EditPostsClient() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 py-1">
-                <input
-                  type="checkbox"
-                  id="isFeatured"
-                  checked={editIsFeatured}
-                  onChange={(e) => setEditIsFeatured(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-background bg-transparent cursor-pointer"
-                />
-                <label htmlFor="isFeatured" className="text-sm font-semibold text-foreground cursor-pointer select-none">
-                  Featured Post (Show on Home Page)
-                </label>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 py-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isFeatured"
+                    checked={editIsFeatured}
+                    onChange={(e) => setEditIsFeatured(e.target.checked)}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-background bg-transparent cursor-pointer"
+                  />
+                  <label htmlFor="isFeatured" className="text-sm font-semibold text-foreground cursor-pointer select-none">
+                    Featured Post (Show on Home Page)
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={editIsPublic}
+                    onChange={(e) => setEditIsPublic(e.target.checked)}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-background bg-transparent cursor-pointer"
+                  />
+                  <label htmlFor="isPublic" className="text-sm font-semibold text-foreground cursor-pointer select-none">
+                    Publicly Visible (Publish Immediately)
+                  </label>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -658,15 +732,101 @@ export default function EditPostsClient() {
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4" style={{ display: editorTab === 'split' ? 'grid' : 'block' }}>
                   {/* TextArea Editor Column */}
                   {(editorTab === 'edit' || editorTab === 'split') && (
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-muted uppercase">Content (Markdown supported) *</label>
+                    <div className="space-y-0">
+                      <label className="text-xs font-bold text-muted uppercase block mb-1.5">Content (Markdown supported) *</label>
+                      
+                      {/* Markdown Toolbar */}
+                      <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-t-lg border border-border bg-muted-background/30">
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('**', '**')}
+                          title="Bold"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <Bold className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('*', '*')}
+                          title="Italic"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <Italic className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('## ')}
+                          title="Heading 2"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground font-bold text-xs flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Heading className="h-4 w-4" /> <span className="text-[10px]">H2</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('### ')}
+                          title="Heading 3"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground font-bold text-xs flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Heading className="h-4 w-4" /> <span className="text-[10px]">H3</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('`', '`')}
+                          title="Inline Code"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <Code className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('```\n', '\n```')}
+                          title="Code Block"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground font-bold text-[10px] cursor-pointer"
+                        >
+                          Code Block
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('[', '](url)')}
+                          title="Insert Link"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <LinkIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('- ')}
+                          title="Unordered List"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <List className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('1. ')}
+                          title="Ordered List"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <ListOrdered className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('> ')}
+                          title="Blockquote"
+                          className="p-1.5 rounded hover:bg-muted-background transition-colors text-muted hover:text-foreground cursor-pointer"
+                        >
+                          <Quote className="h-4 w-4" />
+                        </button>
+                      </div>
+
                       <textarea
+                        ref={textareaRef}
                         rows={16}
                         required
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         placeholder="Write your article in markdown format..."
-                        className="w-full rounded-lg border border-border bg-[var(--code-bg)] p-3 text-sm focus:outline-none focus:border-primary transition-colors resize-y text-secondary font-mono leading-relaxed"
+                        className="w-full rounded-b-lg border border-t-0 border-border bg-[var(--code-bg)] p-3 text-sm focus:outline-none focus:border-primary transition-colors resize-y text-secondary font-mono leading-relaxed"
                       />
                     </div>
                   )}
@@ -823,6 +983,11 @@ export default function EditPostsClient() {
                           {post.isFeatured && (
                             <span className="inline-flex items-center rounded-full bg-primary/20 text-primary px-1.5 py-0.2 text-[9px] font-black uppercase tracking-wider">
                               Featured
+                            </span>
+                          )}
+                          {post.isPublic === false && (
+                            <span className="inline-flex items-center rounded-full bg-red-500/20 text-red-400 px-1.5 py-0.2 text-[9px] font-black uppercase tracking-wider">
+                              Private
                             </span>
                           )}
                         </h3>
