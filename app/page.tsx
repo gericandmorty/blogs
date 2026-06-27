@@ -16,6 +16,7 @@ import {
   ArrowRight,
   MessageSquare,
   Database,
+  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Category, BlogPost } from './types';
@@ -27,6 +28,7 @@ const CATEGORY_FILTERS: { label: string; value: Category | 'all'; icon: React.Re
   { label: 'Coding',    value: 'coding',  icon: <Code2     className="h-4 w-4" />, tagClass: 'tag-coding'  },
   { label: 'Languages', value: 'languages', icon: <Code2     className="h-4 w-4" />, tagClass: 'tag-coding'  },
   { label: 'Databases', value: 'databases', icon: <Database  className="h-4 w-4" />, tagClass: 'tag-coding'  },
+  { label: 'Framework', value: 'framework', icon: <Layers    className="h-4 w-4" />, tagClass: 'tag-coding'  },
 ];
 
 const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; tagClass: string }> = {
@@ -35,6 +37,7 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; ta
   coding:    { label: 'Coding',    icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
   languages: { label: 'Languages', icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
   databases: { label: 'Databases', icon: <Database className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
+  framework: { label: 'Framework', icon: <Layers   className="h-3.5 w-3.5" />, tagClass: 'tag-coding'     },
   general:   { label: 'General',   icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general'    },
 };
 

@@ -1,4 +1,4 @@
-export type Category = 'linux' | 'windows' | 'coding' | 'general' | 'languages' | 'databases';
+export type Category = 'linux' | 'windows' | 'coding' | 'general' | 'languages' | 'databases' | 'framework';
 
 export interface Comment {
   id: string;

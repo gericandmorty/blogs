@@ -19,6 +19,7 @@ import {
   Tag,
   ChevronRight,
   Database,
+  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -28,6 +29,7 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; ta
   coding: { label: 'Coding', icon: <Code2 className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
   languages: { label: 'Languages', icon: <Code2 className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
   databases: { label: 'Databases', icon: <Database className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
+  framework: { label: 'Framework', icon: <Layers className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
   general: { label: 'General', icon: <Tag className="h-3.5 w-3.5" />, tagClass: 'tag-general' },
 };
 

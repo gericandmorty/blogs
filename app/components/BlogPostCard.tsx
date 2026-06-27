@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Clock, Calendar, ArrowRight, Terminal, Monitor, Code2, Tag, Database } from 'lucide-react';
+import { Clock, Calendar, ArrowRight, Terminal, Monitor, Code2, Tag, Database, Layers } from 'lucide-react';
 import { BlogPost, Category } from '../types';
 import { getPostHref } from '../data';
 
@@ -12,6 +12,7 @@ const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; ta
   coding:    { label: 'Coding',    icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
   languages: { label: 'Languages', icon: <Code2    className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
   databases: { label: 'Databases', icon: <Database className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
+  framework: { label: 'Framework', icon: <Layers   className="h-3.5 w-3.5" />, tagClass: 'tag-coding' },
   general:   { label: 'General',   icon: <Tag      className="h-3.5 w-3.5" />, tagClass: 'tag-general' },
 };
 

@@ -222,6 +222,8 @@ export function getPostHref(post: { category: string; slug: string }): string {
       return `/coding/languages/blog/${post.slug}`;
     case 'databases':
       return `/coding/databases/blog/${post.slug}`;
+    case 'framework':
+      return `/coding/frameworks/blog/${post.slug}`;
     default:
       return `/blog/${post.slug}`;
   }
@@ -239,6 +241,8 @@ export function getCategoryHref(category: string): string {
       return '/coding/languages';
     case 'databases':
       return '/coding/databases';
+    case 'framework':
+      return '/coding/frameworks';
     default:
       return '/';
   }

@@ -16,6 +16,7 @@ import {
   Home,
   Search,
   Database,
+  Layers,
 } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -55,6 +56,14 @@ const DATABASE_SUB_LINKS = [
   { label: 'SQL', tag: 'sql', href: '/coding/databases?tag=sql' },
 ];
 
+const FRAMEWORK_SUB_LINKS = [
+  { label: 'All Frameworks', href: '/coding/frameworks' },
+  { label: 'ASP.NET Core', tag: 'asp-dotnet', href: '/coding/frameworks?tag=asp-dotnet' },
+  { label: 'Next.js', tag: 'next', href: '/coding/frameworks?tag=next' },
+  { label: 'NestJS', tag: 'nest', href: '/coding/frameworks?tag=nest' },
+  { label: 'Cargo (Rust)', tag: 'cargo', href: '/coding/frameworks?tag=cargo' },
+];
+
 export default function Navbar({
   searchQuery = '',
   setSearchQuery,
@@ -75,8 +84,10 @@ export default function Navbar({
 
   const [languagesSubOpen, setLanguagesSubOpen] = useState(false);
   const [databasesSubOpen, setDatabasesSubOpen] = useState(false);
+  const [frameworksSubOpen, setFrameworksSubOpen] = useState(false);
   const [mobileLanguagesOpen, setMobileLanguagesOpen] = useState(false);
   const [mobileDatabasesOpen, setMobileDatabasesOpen] = useState(false);
+  const [mobileFrameworksOpen, setMobileFrameworksOpen] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -92,13 +103,14 @@ export default function Navbar({
   // Sync active tag on pathname/state updates
   useEffect(() => {
     setActiveTag(getActiveTag());
-  }, [pathname, codingOpen, mobileOpen, mobileLanguagesOpen, mobileDatabasesOpen]);
+  }, [pathname, codingOpen, mobileOpen, mobileLanguagesOpen, mobileDatabasesOpen, mobileFrameworksOpen]);
 
   // Reset desktop submenus when main dropdown is closed
   useEffect(() => {
     if (!codingOpen) {
       setLanguagesSubOpen(false);
       setDatabasesSubOpen(false);
+      setFrameworksSubOpen(false);
     }
   }, [codingOpen]);
 
@@ -365,6 +377,58 @@ export default function Navbar({
                     </div>
                   )}
                 </div>
+
+                {/* Frameworks Dropdown Toggle */}
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => setFrameworksSubOpen((v) => !v)}
+                    className={`flex items-start gap-3 w-full rounded-lg px-3 py-2 transition-colors hover:bg-muted-background group text-left ${
+                      pathname.startsWith('/coding/frameworks') ? 'bg-primary/5 text-primary' : ''
+                    }`}
+                  >
+                    <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold tag-general">
+                      <Layers className="h-4 w-4 text-primary" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                          Frameworks
+                        </p>
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted transition-transform duration-200 ${
+                            frameworksSubOpen ? 'rotate-180 text-primary' : ''
+                          }`}
+                        />
+                      </div>
+                      <p className="text-xs text-muted">Next.js, NestJS, ASP.NET & Cargo</p>
+                    </div>
+                  </button>
+
+                  {/* Frameworks Submenu Content */}
+                  {frameworksSubOpen && (
+                    <div className="mt-1 ml-10 border-l border-border pl-3 flex flex-col gap-0.5 py-0.5 animate-fade-in-up">
+                      {FRAMEWORK_SUB_LINKS.map((subLink) => {
+                        const isLinkActive =
+                          pathname === '/coding/frameworks' &&
+                          ((!subLink.tag && !activeTag) || (subLink.tag && activeTag === subLink.tag));
+                        return (
+                          <Link
+                            key={subLink.href}
+                            href={subLink.href}
+                            onClick={() => setCodingOpen(false)}
+                            className={`flex items-center text-xs py-1.5 px-2 rounded-md transition-colors hover:bg-muted-background hover:text-foreground ${
+                              isLinkActive
+                                ? 'bg-primary/10 text-primary font-semibold'
+                                : 'text-foreground/70'
+                            }`}
+                          >
+                            {subLink.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -549,6 +613,52 @@ export default function Navbar({
                 {DATABASE_SUB_LINKS.map((subLink) => {
                   const isLinkActive =
                     pathname === '/coding/databases' &&
+                    ((!subLink.tag && !activeTag) || (subLink.tag && activeTag === subLink.tag));
+                  return (
+                    <Link
+                      key={subLink.href}
+                      href={subLink.href}
+                      className={`flex items-center text-xs py-2 px-2.5 rounded-md transition-colors hover:bg-muted-background hover:text-foreground ${
+                        isLinkActive
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : 'text-foreground/70'
+                      }`}
+                    >
+                      {subLink.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Frameworks Toggle (Mobile) */}
+          <div className="flex flex-col">
+            <button
+              onClick={() => setMobileFrameworksOpen((v) => !v)}
+              className={`flex items-center justify-between w-full rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 text-left ${
+                pathname.startsWith('/coding/frameworks')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-foreground/70 hover:text-foreground hover:bg-muted-background'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <Layers className="h-4 w-4" />
+                Frameworks
+              </div>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                  mobileFrameworksOpen ? 'rotate-180 text-primary' : ''
+                }`}
+              />
+            </button>
+
+            {/* Frameworks Submenu Content (Mobile) */}
+            {mobileFrameworksOpen && (
+              <div className="mt-1 ml-6 border-l border-border pl-3 flex flex-col gap-0.5 py-0.5 animate-fade-in-up">
+                {FRAMEWORK_SUB_LINKS.map((subLink) => {
+                  const isLinkActive =
+                    pathname === '/coding/frameworks' &&
                     ((!subLink.tag && !activeTag) || (subLink.tag && activeTag === subLink.tag));
                   return (
                     <Link
